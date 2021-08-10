@@ -12,10 +12,15 @@ use winit::{
 };
 
 use bindings::Windows::{
-    Foundation::Numerics::Vector2,
+    Foundation::Numerics::{Vector2, Vector3},
     Win32::System::WinRT::{RoInitialize, RO_INIT_SINGLETHREADED},
-    UI::Composition::Compositor,
+    UI::{
+        Colors,
+        Composition::{CompositionGeometry, CompositionShape, Compositor, ContainerVisual, SpriteVisual},
+    },
 };
+
+use windows::Interface;
 
 fn run() -> windows::Result<()> {
    unsafe { RoInitialize(RO_INIT_SINGLETHREADED)? };
@@ -34,6 +39,22 @@ fn run() -> windows::Result<()> {
 
    let window_size = window.inner_size();
    let window_size = Vector2::new(window_size.width as f32, window_size.height as f32);
+
+   //
+   let tile_size = Vector2::new(10.0, 10.0);
+   let circle_geometry = compositor.CreateEllipseGeometry()?;
+   circle_geometry.SetRadius(tile_size)?;
+   let circle_geometry: CompositionGeometry = circle_geometry.cast()?;
+
+   let container_shape = compositor.CreateContainerShape()?;
+   let shapes = container_shape.Shapes()?;
+   let color_brush = compositor.CreateColorBrushWithColor(Colors::Red()?)?;
+
+   let shape = compositor.CreateSpriteShapeWithGeometry(&circle_geometry)?;
+   shape.SetFillBrush(&color_brush)?;
+   shape.SetOffset(tile_size / 2.0)?;
+   shapes.Append(shape)?;
+    //
 
    event_loop.run(move |event, _, control_flow| {
        *control_flow = ControlFlow::Wait;
