@@ -1,32 +1,70 @@
-use crow::{
-    glutin::{
-        event::{Event, WindowEvent},
-        event_loop::{ControlFlow, EventLoop},
-        window::WindowBuilder,
-    },
-    Context, DrawConfig, Texture,
-};
+extern crate glutin_window;
+extern crate graphics;
+extern crate opengl_graphics;
+extern crate piston;
 
-fn main() -> Result<(), crow::Error>{
-    let event_loop = EventLoop::new();
-    let mut ctx = Context::new(WindowBuilder::new(), &event_loop)?;
+use glutin_window::GlutinWindow as Window;
+use opengl_graphics::{GlGraphics, OpenGL};
+use piston::event_loop::{EventSettings, Events};
+use piston::input::{RenderArgs, RenderEvent, UpdateArgs, UpdateEvent};
+use piston::window::WindowSettings;
 
-    let texture = Texture::load(&mut ctx, "./textures/player.png")?;
+pub struct App {
+    gl: GlGraphics,
+    rotation: f64,
+}
+
+impl App {
+    fn render(&mut self, args: &RenderArgs) {
+        use graphics::*;
+
+        const PURPLE: [f32; 4] = [0.55, 0.15, 0.96, 1.0];
+        const BLUE: [f32; 4] = [0.35, 0.78, 1.0, 1.0];
+
+        let square = rectangle::square(0.0, 0.0, 50.0);
+        let rotation = self.rotation;
+        let (x, y) = (args.window_size[0] / 2.0, args.window_size[1] / 2.0);
+
+        self.gl.draw(args.viewport(), |c, gl| {
+            clear(PURPLE, gl);
+
+            let transform = c
+                .transform
+                .trans(x, y)
+                .rot_rad(rotation)
+                .trans(-25.0, -25.0);
+            
+                rectangle(BLUE, square, transform, gl);
+        });
+    }
+
+    fn update(&mut self, args: &UpdateArgs) {
+        self.rotation += 2.0 * args.dt;
+    }
+}
+
+fn main() {
+    let opengl = OpenGL::V3_2;
+
+    let mut window: Window = WindowSettings::new("spinning-square", [200, 200])
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
     
-    event_loop.run(
-        move |event: Event<()>, _window_target: _, control_flow: &mut ControlFlow| match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::MainEventsCleared => ctx.window().request_redraw(),
-            Event::RedrawRequested(_) => {
-                let mut surface = ctx.surface();
-                ctx.clear_color(&mut surface, (0.4, 0.4, 0.8, 1.0));
-                ctx.draw(&mut surface, &texture, (100, 150), &DrawConfig::default());
-                ctx.present(surface).unwrap();
-            }
-            _ => (),
-        },
-    );
+    let mut app = App {
+        gl: GlGraphics::new(opengl),
+        rotation: 0.0,
+    };
+
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(&mut window) {
+        if let Some(args) = e.render_args() {
+            app.render(&args);
+        }
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
+        }
+    }
 }
